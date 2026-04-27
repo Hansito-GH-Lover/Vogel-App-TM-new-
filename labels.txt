@@ -1,0 +1,13 @@
+0 Amsel
+1 Blaumeise
+2 Buntspecht
+3 Eichelhäher
+4 Graureiher 
+5 Kohlmeise 
+6 Mäusebussard 
+7 Ringeltaube 
+8 Stockente
+9 weißstorch
+10 Turmfalke
+11 Kein Vogel
+12 Nicht klassifizierbar
