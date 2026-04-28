@@ -12,49 +12,8 @@ st.set_page_config(
     layout="centered"
 )
 
-# -------------------------
-# STYLE (clean & modern)
-# -------------------------
-st.markdown("""
-<style>
-.block-container {
-    padding-top: 2rem;
-    max-width: 700px;
-}
-
-h1 {
-    text-align: center;
-}
-
-.result-box {
-    padding: 20px;
-    border-radius: 12px;
-    margin-top: 20px;
-    font-size: 18px;
-}
-
-.success-box {
-    background-color: #e6f4ea;
-    border-left: 6px solid #34a853;
-}
-
-.warning-box {
-    background-color: #fdecea;
-    border-left: 6px solid #ea4335;
-}
-
-.subtle {
-    color: #666;
-    font-size: 14px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# -------------------------
-# HEADER
-# -------------------------
 st.title("🐦 Vogel-KI")
-st.markdown("<p class='subtle'>Erkennt Vögel mit deiner eigenen KI</p>", unsafe_allow_html=True)
+st.write("Erkennt Vögel mit deinem eigenen Modell")
 
 st.divider()
 
@@ -78,6 +37,8 @@ def load_labels():
     labels = []
     for line in raw:
         line = line.strip()
+
+        # "0 Vogel" → "Vogel"
         if " " in line and line.split(" ")[0].isdigit():
             labels.append(" ".join(line.split(" ")[1:]))
         else:
@@ -88,7 +49,7 @@ def load_labels():
 labels = load_labels()
 
 # -------------------------
-# PREPROCESS
+# PREPROCESSING (TM)
 # -------------------------
 def preprocess(image):
     image = image.convert("RGB")
@@ -98,6 +59,14 @@ def preprocess(image):
     return np.expand_dims(img_array, axis=0)
 
 # -------------------------
+# SETTINGS
+# -------------------------
+THRESHOLD = 0.75
+
+# Alle Klassen außer "kein vogel" gelten als Vogel
+bird_classes = [l for l in labels if "kein" not in l.lower()]
+
+# -------------------------
 # UPLOAD
 # -------------------------
 st.subheader("📤 Bild hochladen")
@@ -105,7 +74,6 @@ uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     image = Image.open(uploaded_file)
-
     st.image(image, caption="Dein Bild", use_column_width=True)
 
     st.divider()
@@ -114,38 +82,35 @@ if uploaded_file:
         processed = preprocess(image)
         prediction = model.predict(processed)[0]
 
+    # -------------------------
+    # BESTE KLASSE
+    # -------------------------
     top_index = int(np.argmax(prediction))
-    label = labels[top_index]
-    confidence = float(prediction[top_index])
+    best_label = labels[top_index]
+    best_conf = float(prediction[top_index])
 
     # -------------------------
-    # RESULT
+    # ENTSCHEIDUNG
     # -------------------------
+    is_bird = (best_label in bird_classes) and (best_conf >= THRESHOLD)
+
     st.subheader("📊 Ergebnis")
 
-    if "vogel" in label.lower():
-        st.markdown(f"""
-        <div class="result-box success-box">
-            🐦 <b>Vogel erkannt</b><br>
-            {label}
-        </div>
-        """, unsafe_allow_html=True)
+    if is_bird:
+        st.success(f"🐦 Vogel erkannt: {best_label}")
+    elif best_label in bird_classes:
+        st.warning(f"⚠️ Unsicher: {best_label}")
     else:
-        st.markdown(f"""
-        <div class="result-box warning-box">
-            ❌ <b>Kein Vogel erkannt</b><br>
-            {label}
-        </div>
-        """, unsafe_allow_html=True)
+        st.error(f"❌ Kein Vogel erkannt")
 
-    st.write(f"**Sicherheit:** {round(confidence*100,2)}%")
-    st.progress(int(confidence * 100))
+    st.write(f"**Sicherheit:** {round(best_conf * 100, 2)}%")
+    st.progress(int(best_conf * 100))
 
     st.divider()
 
     # -------------------------
     # DETAILS
     # -------------------------
-    with st.expander("🔍 Alle Vorhersagen anzeigen"):
+    with st.expander("🔍 Alle Vorhersagen"):
         for i, score in enumerate(prediction):
-            st.write(f"{labels[i]} – {round(float(score)*100,2)}%")
+            st.write(f"{labels[i]} – {round(float(score) * 100, 2)}%")
